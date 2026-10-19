@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#176b45">
+<meta name="description" content="Finaco makes tracking income, expenses and savings simple.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<title>Finaco</title>
+<style>
+:root{--green:#176b45;--green2:#218653;--bg:#f3f7f4;--ink:#20382b;--muted:#64756a;--line:#e1e9e3;--red:#b94b38;--white:#fff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.app{max-width:620px;margin:auto;min-height:100dvh;padding:16px 15px 92px}
+header{display:flex;align-items:center;gap:11px;margin:4px 0 18px}.logo{width:44px;height:44px;border-radius:14px;background:var(--green);color:#fff;display:grid;place-items:center;font-size:24px;font-weight:800}
+.brand{font-size:25px;font-weight:850;color:var(--green);letter-spacing:-1px}.tag{font-size:10px;letter-spacing:1.2px;color:var(--muted)}.spacer{flex:1}
+.install{border:0;border-radius:10px;padding:10px 12px;background:#d9f0e1;color:var(--green);font-weight:700}
+nav{position:fixed;bottom:0;left:0;right:0;z-index:3;background:#ffffffed;backdrop-filter:blur(10px);border-top:1px solid var(--line);display:flex;justify-content:center;padding:8px max(8px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
+nav button{flex:1;max-width:200px;border:0;background:transparent;color:var(--muted);padding:10px 4px;border-radius:12px;font-size:12px;font-weight:700}nav button.active{background:#dff3e6;color:var(--green)}
+h2{font-size:18px;margin:19px 0 10px}p{line-height:1.5}.balance{background:linear-gradient(135deg,#176b45,#218653);color:white;padding:21px;border-radius:22px;box-shadow:0 8px 24px #176b451c}.muted-light{color:#d9f1e2;font-size:13px}.big{font-size:32px;font-weight:800;letter-spacing:-.8px;margin:6px 0 18px;overflow-wrap:anywhere}.stats{display:flex;gap:15px;border-top:1px solid #ffffff45;padding-top:14px}.stat{flex:1;min-width:0}.stat strong{display:block;margin-top:5px;font-size:17px;overflow-wrap:anywhere}.green{color:#176b45}.red{color:var(--red)}
+.card{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:15px;margin-bottom:10px}.row{display:flex;align-items:center;gap:11px}.grow{flex:1;min-width:0}.sub{color:var(--muted);font-size:12px}.title{font-weight:750;overflow-wrap:anywhere}.amount{font-weight:800;white-space:nowrap}.pill{border:0;border-radius:12px;padding:11px 12px;font-weight:750;background:#e4f4e9;color:var(--green)}.pill.secondary{background:#f1f4f1;color:var(--ink)}.pill.danger{background:#fce9e4;color:var(--red)}.full{width:100%}
+label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:10px 0 6px}input,select{font:inherit;width:100%;border:1px solid #dce5de;border-radius:12px;padding:12px;background:#fff;color:var(--ink);outline-color:var(--green)}.type-toggle{display:flex;gap:8px}.type-toggle button{flex:1}.type-toggle .chosen{background:var(--green);color:white}.empty{text-align:center;padding:24px 10px;color:var(--muted)}.progress{height:9px;background:#e2ebe4;border-radius:9px;overflow:hidden;margin:12px 0}.bar{height:100%;background:var(--green2);width:0}.notice{font-size:12px;color:var(--muted);background:#eaf1eb;padding:12px;border-radius:12px;line-height:1.5}.smallbtn{border:0;background:transparent;color:var(--muted);font-size:12px;padding:8px}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div class="logo">ƒ</div><div><div class="brand">finaco.</div><div class="tag">YOUR MONEY, IN CONTROL</div></div><div class="spacer"></div><button id="installBtn" class="install" hidden>Install</button></header>
+<main id="view"></main>
+</div>
+<nav>
+<button data-tab="Home" class="active">⌂<br>Home</button>
+<button data-tab="Activity">↕<br>Activity</button>
+<button data-tab="Savings">♧<br>Savings</button>
+<button data-tab="Settings">⚙<br>Settings</button>
+</nav>
+<script>
+const $=s=>document.querySelector(s);
+const money=n=>'৳'+Number(n||0).toLocaleString('en-BD',{maximumFractionDigits:2});
+const today=()=>new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+let data={entries:[],goal:10000,saved:0};
+try{const old=JSON.parse(localStorage.getItem('finaco-data'));if(old&&Array.isArray(old.entries))data={...data,...old}}catch(e){}
+let tab='Home',type='Expense',filter='All',deferredPrompt=null;
+function persist(){try{localStorage.setItem('finaco-data',JSON.stringify(data))}catch(e){alert('Could not save on this device. Check browser storage settings.')}} 
+function totals(){let income=data.entries.filter(e=>e.kind==='Income').reduce((a,e)=>a+e.amount,0);let expense=data.entries.filter(e=>e.kind==='Expense').reduce((a,e)=>a+e.amount,0);return {income,expense,balance:income-expense}}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function entryCard(e){return `<div class="card row"><div class="logo" style="width:42px;height:42px;font-size:20px;background:${e.kind==='Income'?'#dff3e6':'#fce9e4'};color:${e.kind==='Income'?'#176b45':'#b94b38'}">${e.kind==='Income'?'↙':'↗'}</div><div class="grow"><div class="title">${esc(e.title)}</div><div class="sub">${esc(e.category)} · ${esc(e.date)}</div></div><div class="amount ${e.kind==='Income'?'green':'red'}">${e.kind==='Income'?'+':'−'}${money(e.amount)}<br><button class="smallbtn" data-delete="${e.id}">Delete</button></div></div>`}
+function render(){
+ document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+ const t=totals();let out='';
+ if(tab==='Home'){
+ out=`<div class="balance"><div class="muted-light">Available balance</div><div class="big">${money(t.balance)}</div><div class="stats"><div class="stat"><span class="muted-light">↙ Income</span><strong>${money(t.income)}</strong></div><div class="stat"><span class="muted-light">↗ Expenses</span><strong>${money(t.expense)}</strong></div></div></div>
+ <h2>Add a transaction</h2><div class="card"><div class="type-toggle"><button class="pill ${type==='Expense'?'chosen':''}" data-type="Expense">− Expense</button><button class="pill ${type==='Income'?'chosen':''}" data-type="Income">+ Income</button></div>
+ <form id="entryForm"><label for="title">What was it for?</label><input id="title" maxlength="70" placeholder="e.g. Lunch, tuition income" required><label for="amount">Amount (BDT ৳)</label><input id="amount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="e.g. 150" required><label for="category">Category</label><select id="category"><option>Food</option><option>Transport</option><option>Education</option><option>Shopping</option><option>Bills</option><option>Allowance</option><option>Salary / Tuition</option><option>Other</option></select><button class="pill full" style="margin-top:14px" type="submit">＋ Save transaction</button></form></div>
+ <h2>Recent transactions</h2>${data.entries.length?data.entries.slice(0,3).map(entryCard).join(''):'<div class="card empty">Your transactions will appear here.<br>Add your first income or expense above.</div>'}`;
+ }else if(tab==='Activity'){
+ let list=data.entries.filter(e=>filter==='All'||e.kind===filter);
+ out=`<h2>All transactions</h2><div class="type-toggle" style="margin-bottom:12px"><button class="pill ${filter==='All'?'chosen':''}" data-filter="All">All</button><button class="pill ${filter==='Income'?'chosen':''}" data-filter="Income">Income</button><button class="pill ${filter==='Expense'?'chosen':''}" data-filter="Expense">Expenses</button></div>${list.length?list.map(entryCard).join(''):'<div class="card empty">No transactions here yet.</div>'}`;
+ }else if(tab==='Savings'){
+ let pct=Number(data.goal)>0?Math.min(100,Math.round(data.saved/Number(data.goal)*100)):0;
+ out=`<h2>Savings goal</h2><div class="card"><label for="goal">Your savings target (BDT ৳)</label><input id="goal" type="number" min="1" value="${Number(data.goal)||10000}"><div style="margin-top:20px" class="sub">Money set aside so far</div><div class="big green" style="font-size:29px">${money(data.saved)}</div><div class="progress"><div class="bar" style="width:${pct}%"></div></div><div class="sub">${pct}% of your goal</div><div class="row" style="margin-top:16px"><button class="pill grow" data-save="100">＋ ৳100 saved</button><button class="pill secondary grow" data-save="-100">− ৳100</button></div><button class="pill full" id="saveGoal" style="margin-top:12px">Save goal</button></div><div class="notice">Savings goal is tracked separately from your available balance. Add only money you have actually set aside.</div>`;
+ }else{
+ out=`<h2>Settings</h2><div class="card"><div class="title">Your data stays on this device</div><p class="sub">Finaco saves your transactions in this browser on this device. Clearing browser data may erase them. This first version has no account or cloud backup.</p><button class="pill full" id="export">Download backup (JSON)</button><label for="importFile">Restore a Finaco backup</label><input type="file" id="importFile" accept="application/json"><button class="pill danger full" id="clearData" style="margin-top:16px">Delete all Finaco data</button></div><div class="notice">Keep your backup private. It may contain personal financial details.</div>`;
+ }
+ $('#view').innerHTML=out;
+ $('#entryForm')?.addEventListener('submit',e=>{e.preventDefault();let title=$('#title').value.trim(),amount=Number($('#amount').value);if(!title||!Number.isFinite(amount)||amount<=0)return;data.entries.unshift({id:Date.now(),title,amount,kind:type,category:$('#category').value,date:today()});persist();tab='Activity';render()});
+ document.querySelectorAll('[data-type]').forEach(b=>b.onclick=()=>{type=b.dataset.type;render()});
+ document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;render()});
+ document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>{if(confirm('Delete this transaction?')){data.entries=data.entries.filter(e=>String(e.id)!==b.dataset.delete);persist();render()}});
+ document.querySelectorAll('[data-save]').forEach(b=>b.onclick=()=>{data.saved=Math.max(0,Number(data.saved)+Number(b.dataset.save));persist();render()});
+ $('#saveGoal')?.addEventListener('click',()=>{let v=Number($('#goal').value);if(v>0){data.goal=v;persist();render()}else alert('Enter a goal greater than zero.')});
+ $('#export')?.addEventListener('click',()=>{let blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='finaco-backup.json';a.click();URL.revokeObjectURL(a.href)});
+ $('#importFile')?.addEventListener('change',async e=>{let f=e.target.files[0];if(!f)return;try{let v=JSON.parse(await f.text());if(!Array.isArray(v.entries)||typeof v.goal!=='number'||typeof v.saved!=='number')throw Error();if(confirm('Replace current Finaco data with this backup?')){data=v;persist();render()}}catch(err){alert('This backup file is not valid.')}});
+ $('#clearData')?.addEventListener('click',()=>{if(confirm('Permanently delete all Finaco data from this browser?')){data={entries:[],goal:10000,saved:0};persist();render()}});
+}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{tab=b.dataset.tab;render()}));
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('#installBtn').hidden=false});
+$('#installBtn').addEventListener('click',async()=>{if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$('#installBtn').hidden=true}else alert('Open Chrome menu ⋮ and choose Install app or Add to Home screen if available.')});
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+render();
+</script>
+</body></html>
